@@ -1,0 +1,4 @@
+".\Objects\STARTUP.obj",
+".\Objects\TIMEPLUS.obj" 
+TO ".\Objects\TIMEPLUS" 
+PRINT(".\Listings\TIMEPLUS.m51") RAMSIZE(256) 

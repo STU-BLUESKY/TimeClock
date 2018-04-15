@@ -1,0 +1,720 @@
+C51 COMPILER V9.54   TIME                                                                  05/21/2016 10:49:01 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE TIME
+OBJECT MODULE PLACED IN .\Objects\TIME.obj
+COMPILER INVOKED BY: G:\ukeil\UV5\C51\BIN\C51.EXE TIME.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\TI
+                    -ME.lst) TABS(2) OBJECT(.\Objects\TIME.obj)
+
+line level    source
+
+   1          #include<reg52.h>
+   2          #include<intrins.h>
+   3          #define uchar unsigned char
+   4          #define uint unsigned int 
+   5          
+   6          
+   7          sbit LED_ON=P1^4;
+   8          sbit key_on=P3^2;
+   9          sbit key_hour=P3^4;
+  10          sbit key_minute=P3^6;
+  11          sbit key_second=P3^7;
+  12          sbit dula=P2^6;
+  13          sbit wela=P2^7;
+  14          sbit bee=P2^2;
+  15          sbit wanduan=P1^7;
+  16          
+  17          
+  18          uchar code dula_num[]={0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f,0x77,0x7c,0x39,0x5e,0x79,0x71,0x4
+             -0};
+  19          uchar code wela_num[]={0xfe,0xfd,0xfb,0xf7,0xef,0Xdf,0xbf,0x7f};
+  20          uchar code days[]={31,28,31,30,31,30,31,31,30,31,30,31};
+  21          
+  22          void h_m_s();
+  23          void h_m_s_second();
+  24          void date_display();
+  25          void display();
+  26          void c_display();
+  27          void ms_display();
+  28          void clock();
+  29          void key_scan();
+  30          void key_Function();
+  31          
+  32          void LED_SEC();
+  33          void LED_TIME();
+  34          void LED_CLOCK();
+  35          void LED_TEM();
+  36          
+  37          
+  38          void delayus(uint t);
+  39          void ds_reset();
+  40          bit ds_read_bit();
+  41          uchar ds_read_byte();
+  42          void ds_write_byte(uchar dat);
+  43          uint read_temperature();
+  44          void tem_display(uint temp);
+  45          void temperature();
+  46          
+  47          bit flag_leap=0,flag_starttime=0,flag_startsecond=0;
+  48          uchar hour=12,minute=30,second,c_hour,c_minute,c_second,ms_minute,ms_second;
+  49          uchar key_return,count,led_time1,led_clock1,led_sec1,led_tem1;
+  50          uchar ms_10,ms_3,ms_40,ms_50,ms_30;
+  51          uchar month=5,day=20;
+  52          uint ms_1000;
+  53          uint ms_sec;
+C51 COMPILER V9.54   TIME                                                                  05/21/2016 10:49:01 PAGE 2   
+
+  54          uint m_second;
+  55          uint temp,year=2016;
+  56          
+  57          
+  58          void main()
+  59          {
+  60   1          led_sec1=0xfe;
+  61   1          led_clock1=0x00;
+  62   1          led_time1=0xfe;
+  63   1          led_tem1=0xaa;
+  64   1          bee=1;
+  65   1          TMOD=0x01;
+  66   1          TH0=(65536-1000)/256;
+  67   1          TL0=(65536-1000)%256;
+  68   1          EA=1;
+  69   1          ET0=1;
+  70   1          
+  71   1          TR0=1;
+  72   1        LED_ON=0;
+  73   1          while(1)
+  74   1          {
+  75   2            if(ms_10==10)
+  76   2            {
+  77   3              ms_10=0;
+  78   3              key_scan();
+  79   3            }
+  80   2            if(ms_3==3)
+  81   2            {
+  82   3              ms_3=0;
+  83   3              switch(count)
+  84   3              {
+  85   4                case 0: display();LED_TIME();break;
+  86   4                case 1: display();break;
+  87   4                case 2: c_display();break;
+  88   4                case 3: ms_display();LED_SEC();break;
+  89   4                case 4: date_display();break;
+  90   4                case 5: tem_display(read_temperature());temperature();LED_TEM();break;
+  91   4                default:break;
+  92   4              }
+  93   3            }
+  94   2            clock();
+  95   2            if((year%4==0&&year%400!=0)||year%100==0)
+  96   2               flag_leap=1;
+  97   2            else
+  98   2              flag_leap=0;
+  99   2            
+ 100   2          }
+ 101   1      }
+ 102          
+ 103          
+ 104          void time_0() interrupt 1
+ 105          {
+ 106   1          TH0=(65536-1000)/256;
+ 107   1          TL0=(65536-1000)%256;
+ 108   1          if(flag_starttime==0)
+ 109   1          {
+ 110   2            ms_sec++;
+ 111   2          }
+ 112   1          if(flag_startsecond==1)
+ 113   1          {
+ 114   2            m_second++;
+ 115   2          }
+C51 COMPILER V9.54   TIME                                                                  05/21/2016 10:49:01 PAGE 3   
+
+ 116   1          ms_3++;
+ 117   1          ms_10++;
+ 118   1          ms_30++;
+ 119   1          ms_40++;
+ 120   1          ms_1000++;
+ 121   1          ms_50++;
+ 122   1          h_m_s();
+ 123   1          h_m_s_second();
+ 124   1      }
+ 125          void h_m_s()
+ 126          {
+ 127   1        if(ms_sec==1000)
+ 128   1        {
+ 129   2          ms_sec=0;
+ 130   2          second++;
+ 131   2          if(second>59)
+ 132   2          {
+ 133   3            second=0;
+ 134   3            minute++;
+ 135   3            if(minute>59)
+ 136   3            {
+ 137   4              minute=0;
+ 138   4              hour++;
+ 139   4              if(hour>23)
+ 140   4              {
+ 141   5                hour=0;
+ 142   5                day++;
+ 143   5                if(day>days[month-1])
+ 144   5                {
+ 145   6                  day=1;
+ 146   6                  month++;
+ 147   6                  if(month>12)
+ 148   6                  {
+ 149   7                    month=1;
+ 150   7                    year++;
+ 151   7                    
+ 152   7                  }
+ 153   6                }
+ 154   5              }
+ 155   4            }
+ 156   3          }
+ 157   2        }
+ 158   1      }
+ 159          
+ 160          
+ 161          void h_m_s_second()
+ 162          {
+ 163   1        if(m_second==1000)
+ 164   1        {
+ 165   2          m_second=0;
+ 166   2          ms_second++;
+ 167   2          if(ms_second>59)
+ 168   2          {
+ 169   3            ms_second=0;
+ 170   3            ms_minute++;
+ 171   3            if(ms_minute>9)
+ 172   3            {
+ 173   4              ms_minute=0;
+ 174   4            }
+ 175   3          }
+ 176   2        }
+ 177   1      }
+C51 COMPILER V9.54   TIME                                                                  05/21/2016 10:49:01 PAGE 4   
+
+ 178          
+ 179          void display()
+ 180          {
+ 181   1        static uchar wei=0;
+ 182   1        uchar temp;
+ 183   1        
+ 184   1        LED_ON=1;
+ 185   1        wela=1;
+ 186   1        P0=wela_num[wei];
+ 187   1        wela=0;
+ 188   1        
+ 189   1        dula=1;
+ 190   1        P0=0x00;
+ 191   1        dula=0;
+ 192   1        
+ 193   1        switch(wei)
+ 194   1        {
+ 195   2          case 0: temp=hour/10;break;
+ 196   2          case 1: temp=hour%10;break;
+ 197   2          
+ 198   2          case 2: temp=16;break;
+ 199   2          
+ 200   2          case 3: temp=minute/10;break;
+ 201   2          case 4: temp=minute%10;break;
+ 202   2          
+ 203   2          case 5: temp=16;break;
+ 204   2          
+ 205   2          case 6: temp=second/10;break;
+ 206   2          case 7: temp=second%10;break;
+ 207   2        }
+ 208   1        
+ 209   1        dula=1;
+ 210   1        P0=dula_num[temp];
+ 211   1        dula=0;
+ 212   1      
+ 213   1        wei++;
+ 214   1        if(wei>7)
+ 215   1          wei=0;
+ 216   1        P0=0xff;
+ 217   1        LED_ON=0;
+ 218   1      }
+ 219          
+ 220          
+ 221          
+ 222          void date_display()
+ 223          {
+ 224   1        static uchar wei=0;
+ 225   1        uchar data_temp;
+ 226   1        
+ 227   1        LED_ON=1;
+ 228   1        wela=1;
+ 229   1        P0=wela_num[wei];
+ 230   1        wela=0;
+ 231   1        
+ 232   1        dula=1;
+ 233   1        P0=0x00;
+ 234   1        dula=0;
+ 235   1        
+ 236   1        switch(wei)
+ 237   1        {
+ 238   2          case 0: data_temp=year/1000;break;
+ 239   2          case 1: data_temp=year%1000/100;break;
+C51 COMPILER V9.54   TIME                                                                  05/21/2016 10:49:01 PAGE 5   
+
+ 240   2          
+ 241   2          case 2: data_temp=year%100/10;break;
+ 242   2          
+ 243   2          case 3: data_temp=year%10;break;
+ 244   2          case 4: data_temp=month/10;break;
+ 245   2          
+ 246   2          case 5: data_temp=month%10;break;
+ 247   2          
+ 248   2          case 6: data_temp=day/10;break;
+ 249   2          case 7: data_temp=day%10;break;
+ 250   2        }
+ 251   1        
+ 252   1        dula=1;
+ 253   1        P0=dula_num[data_temp];
+ 254   1        dula=0;
+ 255   1        
+ 256   1      
+ 257   1        wei++;
+ 258   1        if(wei>7)
+ 259   1          wei=0;
+ 260   1        P0=0xff;
+ 261   1        LED_ON=0;
+ 262   1      }
+ 263          
+ 264          void c_display()
+ 265          {
+ 266   1        static uchar wei=0;
+ 267   1        uchar c_temp;
+ 268   1        wela=1;
+ 269   1        P0=wela_num[wei];
+ 270   1        wela=0;
+ 271   1        
+ 272   1        dula=1;
+ 273   1        P0=0x00;
+ 274   1        dula=0;
+ 275   1        
+ 276   1        switch(wei)
+ 277   1        {
+ 278   2          case 0: c_temp=c_hour/10;break;
+ 279   2          case 1: c_temp=c_hour%10;break;
+ 280   2          
+ 281   2          case 2: c_temp=16;break;
+ 282   2          
+ 283   2          case 3: c_temp=c_minute/10;break;
+ 284   2          case 4: c_temp=c_minute%10;break;
+ 285   2          
+ 286   2          case 5: c_temp=16;break;
+ 287   2          
+ 288   2          case 6: c_temp=c_second/10;break;
+ 289   2          case 7: c_temp=c_second%10;break;
+ 290   2        }
+ 291   1        
+ 292   1        dula=1;
+ 293   1        P0=dula_num[c_temp];
+ 294   1        dula=0;
+ 295   1        
+ 296   1        
+ 297   1        wei++;
+ 298   1        if(wei>7)
+ 299   1          wei=0;
+ 300   1        P0=0xff;
+ 301   1      }
+C51 COMPILER V9.54   TIME                                                                  05/21/2016 10:49:01 PAGE 6   
+
+ 302          
+ 303          void ms_display()
+ 304          {
+ 305   1        static uchar wei=0;
+ 306   1        uchar ms_temp;
+ 307   1        
+ 308   1        LED_ON=1;
+ 309   1        
+ 310   1        wela=1;
+ 311   1        P0=wela_num[wei];
+ 312   1        wela=0;
+ 313   1        
+ 314   1        dula=1;
+ 315   1        P0=0x00;
+ 316   1        dula=0;
+ 317   1        
+ 318   1        switch(wei)
+ 319   1        {
+ 320   2          case 0: ms_temp=ms_minute;break;
+ 321   2          
+ 322   2          case 1: ms_temp=16;break;
+ 323   2          
+ 324   2          case 2: ms_temp=ms_second/10;break;
+ 325   2          case 3: ms_temp=ms_second%10;break;
+ 326   2          
+ 327   2          case 4: ms_temp=16;break;
+ 328   2          
+ 329   2          case 5: ms_temp=m_second/100;break;
+ 330   2          case 6: ms_temp=m_second%100/10;break;
+ 331   2          case 7: ms_temp=m_second%10;break;
+ 332   2        }
+ 333   1        
+ 334   1        dula=1;
+ 335   1        P0=dula_num[ms_temp];
+ 336   1        dula=0;
+ 337   1        
+ 338   1        wei++;
+ 339   1        if(wei>7)
+ 340   1          wei=0;
+ 341   1        P0=0xff;
+ 342   1        LED_ON=0;
+ 343   1      }
+ 344          
+ 345          void key_scan()
+ 346          {
+ 347   1        static uchar status=0;
+ 348   1        uchar value=0;
+ 349   1        if(key_on==0) 
+ 350   1          value=1;
+ 351   1        else if(key_hour==0)
+ 352   1          value=2;
+ 353   1        else if(key_minute==0)
+ 354   1          value=3;
+ 355   1        else if(key_second==0)
+ 356   1          value=4;
+ 357   1        else
+ 358   1          value=0;
+ 359   1        switch(status)
+ 360   1        {
+ 361   2          case 0: if(value!=0) status++;break;
+ 362   2          case 1: status++;break;
+ 363   2          case 2: if(value!=0) {status++; key_return=value;} else status=0;break;
+C51 COMPILER V9.54   TIME                                                                  05/21/2016 10:49:01 PAGE 7   
+
+ 364   2          case 3: if(value==0) {key_Function(); status=0;} break;
+ 365   2        }
+ 366   1      }
+ 367          
+ 368          void key_Function()
+ 369          {
+ 370   1        switch(key_return)
+ 371   1        {
+ 372   2          case 1:
+ 373   2            count++;
+ 374   2            if(count==1)
+ 375   2              flag_starttime=1;
+ 376   2            if(count==2)
+ 377   2              flag_starttime=0;
+ 378   2            if(count==3)
+ 379   2              flag_starttime=0;
+ 380   2            if(count==4)
+ 381   2              flag_starttime=0;
+ 382   2            if(count>5)
+ 383   2              count=0;
+ 384   2            break;
+ 385   2          case 2: 
+ 386   2            if(count==1)
+ 387   2            {
+ 388   3              hour++;
+ 389   3                if(hour>23)
+ 390   3                {
+ 391   4                    hour=0;
+ 392   4                    day++;
+ 393   4                }
+ 394   3            }
+ 395   2            if(count==2)
+ 396   2            {
+ 397   3              c_hour++;
+ 398   3                if(c_hour>23)
+ 399   3                  c_hour=0;
+ 400   3            }
+ 401   2            if(count==3)
+ 402   2            {
+ 403   3              flag_startsecond=1;
+ 404   3            }
+ 405   2            if(count==4)
+ 406   2            {
+ 407   3              year++;
+ 408   3              if(year>2026)
+ 409   3                year=2016;
+ 410   3            }
+ 411   2            break;
+ 412   2          case 3:
+ 413   2            if(count==1)
+ 414   2            {
+ 415   3              minute++;
+ 416   3              if(minute>59)
+ 417   3                minute=0;
+ 418   3            }
+ 419   2            if(count==2)
+ 420   2            {
+ 421   3              c_minute++;
+ 422   3              if(c_minute>59)
+ 423   3                c_minute=0;
+ 424   3            }
+ 425   2            if(count==3)
+C51 COMPILER V9.54   TIME                                                                  05/21/2016 10:49:01 PAGE 8   
+
+ 426   2            {
+ 427   3              flag_startsecond=0;
+ 428   3            }
+ 429   2            if(count==4)
+ 430   2            {
+ 431   3              month++;
+ 432   3              if(month>12)
+ 433   3                month=1;
+ 434   3            }
+ 435   2            break;
+ 436   2          case 4:
+ 437   2            if(count==1)
+ 438   2            {
+ 439   3              second++;
+ 440   3              if(second>59)
+ 441   3                second=0;
+ 442   3            }
+ 443   2            if(count==2)
+ 444   2            {
+ 445   3              c_second++;
+ 446   3              if(c_second>59)
+ 447   3                c_second=0;
+ 448   3            }
+ 449   2            if(count==3)
+ 450   2            {
+ 451   3              flag_startsecond=0;
+ 452   3              ms_minute=0;
+ 453   3              ms_second=0;
+ 454   3              m_second=0;
+ 455   3            }
+ 456   2            if(count==4)
+ 457   2            {
+ 458   3              day++;
+ 459   3              if(flag_leap==1)
+ 460   3              {
+ 461   4                if(month==2)
+ 462   4                {
+ 463   5                  if(day>29)
+ 464   5                    day=1;
+ 465   5                }
+ 466   4                else
+ 467   4                {
+ 468   5                if(day>days[month-1])
+ 469   5                day=1;
+ 470   5                }
+ 471   4              }
+ 472   3              else
+ 473   3              {
+ 474   4                if(day>days[month-1])
+ 475   4                day=1;
+ 476   4              }
+ 477   3            }
+ 478   2            break;
+ 479   2          default:break;
+ 480   2        }
+ 481   1        
+ 482   1      }
+ 483          
+ 484          void clock()
+ 485          {
+ 486   1        if(hour==c_hour)
+ 487   1        {
+C51 COMPILER V9.54   TIME                                                                  05/21/2016 10:49:01 PAGE 9   
+
+ 488   2          if(minute==c_minute)
+ 489   2          {
+ 490   3            if(second==c_second>0)
+ 491   3              bee=0;
+ 492   3              LED_CLOCK();
+ 493   3            if((second-c_second)<30)
+ 494   3              bee=0;
+ 495   3            if(key_return!=0)
+ 496   3              bee=1;
+ 497   3          }
+ 498   2        }
+ 499   1      
+ 500   1      }
+ 501          
+ 502          void LED_TIME()
+ 503          {
+ 504   1        P0=led_time1;
+ 505   1        if(ms_1000>1000)
+ 506   1        {
+ 507   2          ms_1000=0;
+ 508   2          if(led_time1==0x00)
+ 509   2          {
+ 510   3            led_time1=0xfe;
+ 511   3          }
+ 512   2          else
+ 513   2          led_time1=led_time1<<1;
+ 514   2        }
+ 515   1      }
+ 516          
+ 517          void LED_CLOCK()
+ 518          {
+ 519   1        P0=led_clock1;
+ 520   1        if(ms_50>50)
+ 521   1        {
+ 522   2          ms_50=0;
+ 523   2          led_clock1=~led_clock1;
+ 524   2        }
+ 525   1      }
+ 526          void LED_SEC()
+ 527          {
+ 528   1      
+ 529   1        P0=led_sec1;
+ 530   1        if(ms_40>50)
+ 531   1        {
+ 532   2          ms_40=0;
+ 533   2          led_sec1=_crol_(led_sec1,1);
+ 534   2        }
+ 535   1      }
+ 536          void LED_TEM()
+ 537          {
+ 538   1        P0=led_tem1;
+ 539   1        if(ms_30>1)
+ 540   1        {
+ 541   2          ms_30=0;
+ 542   2          led_tem1=_cror_(led_tem1,1);
+ 543   2        }
+ 544   1      }
+ 545          
+ 546          
+ 547          void delayus(uint t)
+ 548          {
+ 549   1        while(t--);
+C51 COMPILER V9.54   TIME                                                                  05/21/2016 10:49:01 PAGE 10  
+
+ 550   1      }
+ 551          
+ 552          void ds_reset()
+ 553          {
+ 554   1        wanduan=1;
+ 555   1        delayus(5);
+ 556   1        wanduan=0;
+ 557   1        delayus(50);
+ 558   1        wanduan=1;
+ 559   1        delayus(14);
+ 560   1      
+ 561   1        delayus(20);
+ 562   1      }
+ 563          
+ 564          bit ds_read_bit()
+ 565          {
+ 566   1        bit dat;
+ 567   1        wanduan=0;
+ 568   1        _nop_();
+ 569   1        _nop_();
+ 570   1        wanduan=1;
+ 571   1      //  _nop_();
+ 572   1        dat=wanduan;
+ 573   1        delayus(10);
+ 574   1        return dat;
+ 575   1      }
+ 576          
+ 577          uchar ds_read_byte()
+ 578          {
+ 579   1        uchar i,j,k;
+ 580   1        for(i=0;i<8;i++)
+ 581   1        {
+ 582   2          j=ds_read_bit();   
+ 583   2          k=(j<<7)|(k>>1);//1000 0000 |0100 0000
+ 584   2        }
+ 585   1        return k;
+ 586   1      }
+ 587          
+ 588          void ds_write_byte(uchar dat)
+ 589          {
+ 590   1        uchar i;
+ 591   1        for(i=0;i<8;i++)
+ 592   1        {
+ 593   2          wanduan=0;
+ 594   2          _nop_();
+ 595   2          wanduan=dat&0x01;
+ 596   2          delayus(6);
+ 597   2          wanduan=1;
+ 598   2          dat=dat>>1;
+ 599   2        }
+ 600   1        delayus(6);
+ 601   1      }
+ 602          
+ 603          uint read_temperature()
+ 604          {
+ 605   1        uchar a,b;
+ 606   1        ds_reset();
+ 607   1        ds_write_byte(0xcc);
+ 608   1        ds_write_byte(0xbe);
+ 609   1        a=ds_read_byte();
+ 610   1        b=ds_read_byte();
+ 611   1        temp=b;
+C51 COMPILER V9.54   TIME                                                                  05/21/2016 10:49:01 PAGE 11  
+
+ 612   1        temp=temp<<8;
+ 613   1        temp=temp|a;
+ 614   1        temp=temp*0.0625*10+0.5;
+ 615   1        return temp;
+ 616   1      
+ 617   1      }
+ 618          
+ 619          void tem_display(uint temp)
+ 620          {
+ 621   1        
+ 622   1        static uchar wei=0;
+ 623   1        uchar t_temp;
+ 624   1        
+ 625   1        LED_ON=1;
+ 626   1        wela=1;
+ 627   1        P0=wela_num[wei];
+ 628   1        wela=0;
+ 629   1        
+ 630   1        dula=1;
+ 631   1        P0=0x00;
+ 632   1        dula=0;
+ 633   1        
+ 634   1        switch(wei)
+ 635   1        {
+ 636   2          case 0: t_temp=temp/100;break;
+ 637   2          case 1: t_temp=temp%100/10;break;
+ 638   2          
+ 639   2          case 2: t_temp=temp%100%10;break;
+ 640   2          
+ 641   2        }
+ 642   1        
+ 643   1        if(wei==1)
+ 644   1        {
+ 645   2         dula=1;
+ 646   2         P0=dula_num[t_temp]|0x80;
+ 647   2         dula=0;
+ 648   2        }
+ 649   1        else
+ 650   1        {
+ 651   2        dula=1;
+ 652   2        P0=dula_num[t_temp];
+ 653   2        dula=0;
+ 654   2        }
+ 655   1        
+ 656   1        //while(--i);
+ 657   1        wei++;
+ 658   1        if(wei>3)
+ 659   1          wei=0;
+ 660   1        P0=0xff;
+ 661   1        LED_ON=0;
+ 662   1      }
+ 663          
+ 664          void temperature()
+ 665          {
+ 666   1        
+ 667   1          ds_reset();
+ 668   1          ds_write_byte(0xcc);
+ 669   1          ds_write_byte(0x44);
+ 670   1      //  tem_display(read_temperature());
+ 671   1        
+ 672   1      }
+ 673          
+C51 COMPILER V9.54   TIME                                                                  05/21/2016 10:49:01 PAGE 12  
+
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1908    ----
+   CONSTANT SIZE    =     37    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     37       2
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      3       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
